@@ -49,6 +49,7 @@ def entry_to_dict(entry):
     }
 
 
+
 @require_GET
 def health(request):
     return JsonResponse({"status": "ok"})
@@ -118,5 +119,62 @@ def library_entry_detail(request, entry_id):
         entry = LibraryEntry.objects.get(pk=entry_id)
     except LibraryEntry.DoesNotExist:
         return not_found_error()
+
+    return JsonResponse(entry_to_dict(entry), status=200)
+
+@csrf_exempt
+def update_library_entry(request, entry_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+
+   
+    try:
+        entry = LibraryEntry.objects.get(pk=entry_id)
+    except LibraryEntry.DoesNotExist:
+        return not_found_error()
+
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return validation_error({"body": "JSON mal formado"})
+
+    if not data:
+        return validation_error({"body": "El JSON no puede estar vacío"})
+
+
+    allowed = {"status", "hours_played"}
+    unknown = set(data.keys()) - allowed
+    if unknown:
+        return validation_error({field: "campo no permitido" for field in unknown})
+
+
+    details = {}
+
+    if "status" in data:
+        status_raw = data["status"]
+        if not isinstance(status_raw, str):
+            details["status"] = "debe ser string"
+        elif status_raw not in ALLOWED_STATUSES:
+            details["status"] = "valor no permitido"
+
+    if "hours_played" in data:
+        hours = data["hours_played"]
+        if not isinstance(hours, int) or isinstance(hours, bool):
+            details["hours_played"] = "debe ser integer"
+        elif hours < 0:
+            details["hours_played"] = "debe ser mayor o igual que 0"
+
+    if details:
+        return validation_error(details)
+
+
+    if "status" in data:
+        entry.status = data["status"]
+    if "hours_played" in data:
+        entry.hours_played = data["hours_played"]
+
+    entry.save()
+
 
     return JsonResponse(entry_to_dict(entry), status=200)
