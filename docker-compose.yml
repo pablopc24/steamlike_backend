@@ -16,24 +16,15 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: steamlike_backend.settings
     depends_on:
       - db
     volumes:
-      - .:/app
+      - .:/steamlike_backend:/app
     ports:
       - "8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
-
-
-  #frontend:
-    #build: ../steamlike-frontend
-    #restart: unless-stopped
-    #environment:
-      #API_BASE_URL: http://localhost:8000
-    #depends_on:
-      #- web
-    #ports:
-      #- "3000:80"
 
 volumes:
   postgres_data:
