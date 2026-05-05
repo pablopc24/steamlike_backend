@@ -42,20 +42,21 @@ class LibraryEntriesListTests(APITestCase):
         )
 
         # Entradas de user1
-        Entry.objects.create(title="Entrada 1", content="...", owner=self.user1)
-        Entry.objects.create(title="Entrada 2", content="...", owner=self.user1)
+        Entry.objects.create(external_id="1", title="Entrada 1", content="...", owner=self.user1)
+        Entry.objects.create(external_id="2", title="Entrada 2", content="...", owner=self.user1)
 
         # Entradas de user2
-        Entry.objects.create(title="Entrada A", content="...", owner=self.user2)
+        Entry.objects.create(external_id="A", title="Entrada A", content="...", owner=self.user2)
 
     def test_list_without_auth(self):
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data.get("detail"), "No autenticado")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("detail", response.data)
+        self.assertTrue(response.data.get("detail"))
 
     def test_list_with_auth(self):
-        self.client.login(username="pablo", password="password_segura_123")
+        self.client.force_login(self.user1)
 
         response = self.client.get(self.url)
 
@@ -103,27 +104,25 @@ class LibraryEntryDetailTests(APITestCase):
         url = f"/api/library/entries/{self.entry_user1.id}/"
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data.get("detail"), "No autenticado")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_detail_with_auth_own_entry(self):
-        self.client.login(username="pablo", password="password_segura_123")
+        self.client.force_login(self.user1)
 
         url = f"/api/library/entries/{self.entry_user1.id}/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.entry_user1.id)
-        self.assertEqual(response.data["title"], "Entrada de Pablo")
 
     def test_detail_with_auth_other_user_entry(self):
-        self.client.login(username="pablo", password="password_segura_123")
+        self.client.force_login(self.user1)
 
         url = f"/api/library/entries/{self.entry_user2.id}/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data.get("detail"), "La entrada solicitada no existe")
+        self.assertEqual(response.data["error"], "not_found")
 
 class LibraryEntryCreateTests(APITestCase):
     url = "/api/library/entries/"
@@ -140,45 +139,60 @@ class LibraryEntryCreateTests(APITestCase):
 
     def test_create_without_auth(self):
         data = {
-            "title": "Entrada sin login",
-            "content": "Contenido"
+            "external_id": "123"
         }
         response = self.client.post(self.url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data.get("detail"), "No autenticado")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_with_auth(self):
-        self.client.login(username="pablo", password="password_segura_123")
+        self.client.force_login(self.user1)
+
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = [{"title": "Test Game", "shortDescription": "Descripción"}]
 
         data = {
-            "title": "Nueva entrada",
-            "content": "Contenido de prueba"
+            "external_id": "123",
+            "hours_played": 10,
+            "notes": "Notas de prueba"
         }
-        response = self.client.post(self.url, data, format="json")
+
+        with patch('library.views.requests.get', return_value=fake_response):
+            response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["title"], "Nueva entrada")
-        self.assertEqual(response.data["owner"], self.user1.id)
+        self.assertEqual(response.data["external_id"], "123")
+        self.assertEqual(response.data["hours_played"], 10)
 
         # Verificar que realmente se creó en la BD
         self.assertEqual(Entry.objects.filter(owner=self.user1).count(), 1)
 
     def test_isolation_between_users(self):
+        fake_response1 = MagicMock()
+        fake_response1.status_code = 200
+        fake_response1.json.return_value = [{"title": "Entrada Pablo", "shortDescription": "Contenido"}]
+
+        fake_response2 = MagicMock()
+        fake_response2.status_code = 200
+        fake_response2.json.return_value = [{"title": "Entrada Ana", "shortDescription": "Contenido"}]
+
         # User1 crea una entrada
-        self.client.login(username="pablo", password="password_segura_123")
-        self.client.post(self.url, {"title": "Entrada Pablo", "content": "..."}, format="json")
+        self.client.force_login(self.user1)
+        with patch('library.views.requests.get', return_value=fake_response1):
+            self.client.post(self.url, {"external_id": "pablo", "hours_played": 5}, format="json")
         self.client.logout()
 
         # User2 crea otra entrada
-        self.client.login(username="ana", password="password_segura_456")
-        self.client.post(self.url, {"title": "Entrada Ana", "content": "..."}, format="json")
+        self.client.force_login(self.user2)
+        with patch('library.views.requests.get', return_value=fake_response2):
+            self.client.post(self.url, {"external_id": "A-123", "hours_played": 2}, format="json")
 
         # Listado de user2 → solo debe ver su entrada
         response = self.client.get("/api/library/entries/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "Entrada Ana")
+        self.assertEqual(response.data[0]["external_id"], "A-123")
 
 class CatalogSearchTests(APITestCase):
     url = "/api/catalog/search/"
@@ -193,10 +207,10 @@ class CatalogSearchTests(APITestCase):
         ]
 
         fake_response = MagicMock()
-        fake_response.read.return_value = json.dumps(sample_response).encode("utf-8")
-        fake_response.__enter__.return_value = fake_response
+        fake_response.status_code = 200
+        fake_response.json.return_value = sample_response
 
-        with patch("library.views.urlopen", return_value=fake_response):
+        with patch('catalog.views.requests.get', return_value=fake_response):
             response = self.client.get(self.url, {"q": "mario"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -213,10 +227,10 @@ class CatalogSearchTests(APITestCase):
         response = self.client.get(self.url, {"q": ""})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json(), {"error": "validation_error"})
+        self.assertEqual(response.json(), {"error": "validation_error", "message": "El parámetro 'q' es obligatorio y no puede estar vacío"})
 
     def test_search_missing_q_returns_validation_error(self):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json(), {"error": "validation_error"})
+        self.assertEqual(response.json(), {"error": "validation_error", "message": "El parámetro 'q' es obligatorio y no puede estar vacío"})

@@ -1,7 +1,5 @@
 import json
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+import requests
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -34,11 +32,11 @@ def entries_list(request):
     user = request.user
 
     if request.method == "GET":
-        entries = Entry.objects.filter(user=user)
+        entries = Entry.objects.filter(owner=user)
         data = [
             {
                 "id": entry.id,
-                "external_game_id": entry.external_game_id,
+                "external_id": entry.external_id,
                 "hours_played": entry.hours_played,
                 "notes": entry.notes,
             }
@@ -48,20 +46,20 @@ def entries_list(request):
 
     if request.method == "POST":
         try:
-            body = json.loads(request.body)
+            body = json.loads(request.body.decode("utf-8"))
         except:
             return Response(
                 {"error": "validation_error", "message": "JSON inválido"},
                 status=400
             )
 
-        external_game_id = body.get("external_game_id")
+        external_id = body.get("external_id")
         hours_played = body.get("hours_played")
         notes = body.get("notes")
 
-        if not external_game_id:
+        if not external_id:
             return Response(
-                {"error": "validation_error", "message": "external_game_id es obligatorio"},
+                {"error": "validation_error", "message": "external_id es obligatorio"},
                 status=400
             )
 
@@ -71,7 +69,7 @@ def entries_list(request):
         try:
             response = requests.get(
                 "https://www.cheapshark.com/api/1.0/games",
-                params={"id": external_game_id},
+                params={"id": external_id},
                 timeout=5
             )
         except requests.exceptions.RequestException:
@@ -92,23 +90,41 @@ def entries_list(request):
                 status=502
             )
 
-        data = response.json()
-        info = data.get("info")
+        try:
+            data = response.json()
+        except ValueError:
+            return Response(
+                {
+                    "error": "external_service_error",
+                    "message": "Error al consultar el catálogo externo."
+                },
+                status=502
+            )
+
+        if isinstance(data, list):
+            info = data[0] if len(data) else None
+        else:
+            info = data.get("info")
 
         if not info:
             return Response(
                 {
                     "error": "invalid_external_game_id",
                     "message": "El juego indicado no existe en el catálogo externo.",
-                    "details": { "external_game_id": "not_found" }
+                    "details": {"external_id": "not_found"}
                 },
                 status=400
             )
 
+        title = info.get("title", "")
+        content = info.get("shortDescription", "")
+
         # Crear entrada
         entry = Entry.objects.create(
-            user=user,
-            external_game_id=external_game_id,
+            owner=user,
+            external_id=external_id,
+            title=title,
+            content=content,
             hours_played=hours_played or 0,
             notes=notes or ""
         )
@@ -116,9 +132,40 @@ def entries_list(request):
         return Response(
             {
                 "id": entry.id,
-                "external_game_id": entry.external_game_id,
+                "external_id": entry.external_id,
                 "hours_played": entry.hours_played,
                 "notes": entry.notes,
             },
             status=201
         )
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def entry_detail(request, entry_id):
+    user = request.user
+
+    try:
+        entry = Entry.objects.get(id=entry_id, owner=user)
+    except Entry.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+
+    if request.method == "GET":
+        return Response(
+            {
+                "id": entry.id,
+                "external_id": entry.external_id,
+                "hours_played": entry.hours_played,
+                "notes": entry.notes,
+            }
+        )
+
+    if request.method == "PUT":
+        data = request.data
+        entry.hours_played = data.get("hours_played", entry.hours_played)
+        entry.notes = data.get("notes", entry.notes)
+        entry.save()
+        return Response({"status": "updated"})
+
+    if request.method == "DELETE":
+        entry.delete()
+        return Response(status=204)

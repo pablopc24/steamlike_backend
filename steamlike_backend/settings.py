@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # Local apps
     "library",
     "auth_app",
+    "catalog",
 ]
 
 MIDDLEWARE = [
@@ -84,9 +85,7 @@ ASGI_APPLICATION = "steamlike_backend.asgi.application"
 # -------------------------
 DATABASES = {
     "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True
+        default="sqlite:///db.sqlite3"
     )
 }
 

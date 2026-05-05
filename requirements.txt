@@ -5,3 +5,5 @@ gunicorn>=21.2,<23.0
 python-dotenv>=1.0,<2.0
 djangorestframework
 coverage
+dj-database-url
+requests

@@ -3,10 +3,12 @@ from django.contrib.auth.models import User
 
 
 class Entry(models.Model):
+    title = models.CharField(max_length=255, default='')
+    content = models.TextField(blank=True, default='')
+    external_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
+    hours_played = models.IntegerField(default=0)
+    notes = models.TextField(blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-    external_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    title = models.CharField(max_length=255, default="")
-    content = models.TextField(default="", blank=True)
 
     def __str__(self):
         return f"{self.external_id} ({self.title})"

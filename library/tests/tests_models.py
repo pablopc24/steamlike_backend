@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from library.models import LibraryEntry
+from library.models import Entry
 
 class DemoTest(TestCase):
     def test_demo(self):
@@ -16,10 +16,10 @@ class DemoTest(TestCase):
             # Codigo que lanza la excepcion
             4/0
 
-class LibraryEntryExternalIdLengthTests(TestCase):
+class EntryExternalIdLengthTests(TestCase):
     def test_external_id_length_counts_regular_string(self):
         # Precondiciones
-        entry = LibraryEntry(external_game_id="abc")
+        entry = Entry(external_id="abc")
 
         # Llamada
         longitud = entry.external_id_length()
@@ -29,7 +29,7 @@ class LibraryEntryExternalIdLengthTests(TestCase):
 
     def test_external_id_length_counts_empty_string_as_zero(self):
         # Precondiciones
-        entry = LibraryEntry(external_game_id="")
+        entry = Entry(external_id="")
 
         # Llamada
         longitud = entry.external_id_length()
@@ -39,7 +39,7 @@ class LibraryEntryExternalIdLengthTests(TestCase):
 
     def test_external_id_length_counts_whitespace(self):
         # Precondiciones
-        entry = LibraryEntry(external_game_id="   ")
+        entry = Entry(external_id="   ")
 
         # Llamada
         longitud = entry.external_id_length()
@@ -49,7 +49,7 @@ class LibraryEntryExternalIdLengthTests(TestCase):
 
     def test_external_id_length_counts_max_length_boundary_100(self):
         # Precondiciones
-        entry = LibraryEntry(external_game_id="x" * 100)
+        entry = Entry(external_id="x" * 100)
 
         # Llamada
         longitud = entry.external_id_length()
@@ -60,7 +60,7 @@ class LibraryEntryExternalIdLengthTests(TestCase):
     def test_external_id_length_raises_type_error_if_not_string_or_none(self):
         # Caso anómalo: asignación indebida en memoria.
         # Precondiciones
-        entry = LibraryEntry(external_game_id=123)
+        entry = Entry(external_id=123)
 
         # Llamada
         # Comprobaciones

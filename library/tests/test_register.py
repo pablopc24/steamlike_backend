@@ -16,9 +16,10 @@ class RegisterTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("id", response.data)
-        self.assertEqual(response.data["username"], "pablo")
-        self.assertNotIn("password", response.data)
+        data = response.json()
+        self.assertIn("id", data)
+        self.assertEqual(data["username"], "pablo")
+        self.assertNotIn("password", data)
 
     def test_register_empty_json(self):
         response = self.client.post(self.url, {}, format="json")
