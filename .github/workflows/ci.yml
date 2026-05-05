@@ -6,6 +6,7 @@ on:
       - main
       - master
       - semana2.steam
+      - semana5
 
 jobs:
   test:
