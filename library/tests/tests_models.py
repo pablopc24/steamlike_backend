@@ -5,7 +5,7 @@ from library.models import Entry
 class DemoTest(TestCase):
     def test_demo(self):
         # Comprueba que dos valores son exactamente iguales.
-        self.assertEqual(4, 2+2)
+        self.assertEqual(5, 2+2)
         # Comprueba si una condición se cumple o no.
         self.assertTrue(4 == 4)
         self.assertFalse(5 == 4)
