@@ -18,13 +18,24 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: steamlike_backend.settings
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DB: ${REDIS_DB}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
       - db
+      - redis
     volumes:
-      - .:/steamlike_backend:/app
+      - .:/app
     ports:
       - "8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
 
 volumes:
   postgres_data:

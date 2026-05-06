@@ -6,4 +6,5 @@ python-dotenv>=1.0,<2.0
 djangorestframework
 coverage
 dj-database-url
+django-redis>=5.0,<6.0
 requests

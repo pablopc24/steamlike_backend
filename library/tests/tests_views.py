@@ -1,4 +1,6 @@
 ﻿import json
+import hashlib
+import requests
 from unittest.mock import patch, MagicMock
 
 from rest_framework.test import APITestCase
@@ -210,7 +212,7 @@ class CatalogSearchTests(APITestCase):
         fake_response.status_code = 200
         fake_response.json.return_value = sample_response
 
-        with patch('catalog.views.requests.get', return_value=fake_response):
+        with patch('library.catalog_service.requests.get', return_value=fake_response):
             response = self.client.get(self.url, {"q": "mario"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -234,3 +236,85 @@ class CatalogSearchTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.json(), {"error": "validation_error", "message": "El parámetro 'q' es obligatorio y no puede estar vacío"})
+
+    def test_search_results_are_cached(self):
+        sample_response = [
+            {
+                "gameID": "123",
+                "external": "Test Game",
+                "thumb": "https://example.com/thumb.jpg",
+            }
+        ]
+
+        expected_results = [
+            {
+                "external_game_id": "123",
+                "title": "Test Game",
+                "thumb": "https://example.com/thumb.jpg",
+            }
+        ]
+
+        cache_key = "catalog_search:" + hashlib.sha256("mario".encode("utf-8")).hexdigest()
+
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = sample_response
+
+        with patch('library.catalog_service.cache') as fake_cache, patch('library.catalog_service.requests.get', return_value=fake_response) as fake_requests_get:
+            fake_cache.get.return_value = None
+            response = self.client.get(self.url, {"q": "mario"})
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.json(), expected_results)
+            fake_cache.set.assert_called_once_with(cache_key, expected_results, timeout=300)
+            fake_requests_get.assert_called_once()
+
+        with patch('library.catalog_service.cache') as fake_cache, patch('library.catalog_service.requests.get') as fake_requests_get:
+            fake_cache.get.return_value = expected_results
+            response = self.client.get(self.url, {"q": "mario"})
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.json(), expected_results)
+            fake_requests_get.assert_not_called()
+
+    def test_search_falls_back_to_cache_when_provider_unavailable(self):
+        expected_results = [
+            {
+                "external_game_id": "123",
+                "title": "Test Game",
+                "thumb": "https://example.com/thumb.jpg",
+            }
+        ]
+
+        with patch('library.catalog_service.cache') as fake_cache, patch('library.catalog_service.requests.get', side_effect=requests.exceptions.RequestException):
+            fake_cache.get.return_value = expected_results
+            response = self.client.get(self.url, {"q": "mario"})
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.json(), expected_results)
+
+    def test_search_returns_503_when_provider_unavailable_and_no_cache(self):
+        with patch('library.catalog_service.cache') as fake_cache, patch('library.catalog_service.requests.get', side_effect=requests.exceptions.RequestException):
+            fake_cache.get.return_value = None
+            response = self.client.get(self.url, {"q": "mario"})
+
+            self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+            self.assertEqual(response.json(), {
+                "error": "external_service_unavailable",
+                "message": "El catálogo externo no está disponible. Inténtalo más tarde."
+            })
+
+    def test_search_returns_502_when_provider_returns_error_and_no_cache(self):
+        fake_response = MagicMock()
+        fake_response.status_code = 500
+        fake_response.json.return_value = {}
+
+        with patch('library.catalog_service.cache') as fake_cache, patch('library.catalog_service.requests.get', return_value=fake_response):
+            fake_cache.get.return_value = None
+            response = self.client.get(self.url, {"q": "mario"})
+
+            self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+            self.assertEqual(response.json(), {
+                "error": "external_service_error",
+                "message": "Error al consultar el catálogo externo."
+            })
