@@ -24,7 +24,7 @@ DEBUG = _env_bool("DJANGO_DEBUG", True)
 # IMPORTANTE: añade aquí tu dominio de Render
 ALLOWED_HOSTS = _env_csv(
     "DJANGO_ALLOWED_HOSTS",
-    "localhost,127.0.0.1,steamlike-backend-bvuy.onrender.com"
+    "localhost,127.0.0.1,steamlike-backend-bvuy.onrender.com,testserver"
 )
 
 INSTALLED_APPS = [
@@ -85,8 +85,15 @@ ASGI_APPLICATION = "steamlike_backend.asgi.application"
 # -------------------------
 DATABASES = {
     "default": dj_database_url.config(
-        default="sqlite:///db.sqlite3"
-    )
+        default=f"postgresql://{_env('POSTGRES_USER')}:{_env('POSTGRES_PASSWORD')}@{_env('POSTGRES_HOST', 'db')}:{_env('POSTGRES_PORT', '5432')}/{_env('POSTGRES_DB')}"
+    ) if not DEBUG else {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": _env("POSTGRES_DB", "steamlike_db"),
+        "USER": _env("POSTGRES_USER", "steamlike"),
+        "PASSWORD": _env("POSTGRES_PASSWORD", "password"),
+        "HOST": _env("POSTGRES_HOST", "db"),
+        "PORT": _env("POSTGRES_PORT", "5432"),
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -134,3 +141,27 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+# --- LOGGING ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{levelname}] {asctime} {name} - {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "library.catalog_service": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}

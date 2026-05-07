@@ -1,6 +1,9 @@
 import hashlib
+import logging
 import requests
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 CHEAPSHARK_URL = "https://www.cheapshark.com/api/1.0/games"
 CACHE_TTL_SECONDS = 300
@@ -41,15 +44,24 @@ def _fetch_catalog_data(params: dict) -> list[dict] | dict:
 
 def search_catalog(query: str) -> list[dict]:
     cache_key = _catalog_search_cache_key(query)
+    logger.debug(f"Searching catalog for query: {query!r}, cache_key: {cache_key}")
+    
     cached_results = cache.get(cache_key)
     if cached_results is not None:
+        logger.info(f"Cache hit for query: {query!r}. Returned {len(cached_results)} results from Redis.")
         return cached_results
+    
+    logger.debug(f"Cache miss for query: {query!r}. Fetching from CheapShark...")
 
     try:
         data = _fetch_catalog_data({"title": query})
-    except (CatalogServiceUnavailable, CatalogServiceExternalError):
+    except (CatalogServiceUnavailable, CatalogServiceExternalError) as exc:
+        logger.debug(f"Provider request failed: {type(exc).__name__}. Checking for fallback cache...")
+        cached_results = cache.get(cache_key)
         if cached_results is not None:
+            logger.info(f"Provider failed for query: {query!r}, but falling back to stale cache with {len(cached_results)} results.")
             return cached_results
+        logger.error(f"Provider failed for query: {query!r} and no cache available. Raising error.")
         raise
 
     results = [
@@ -61,22 +73,34 @@ def search_catalog(query: str) -> list[dict]:
         for item in data
     ]
 
+    logger.info(f"Provider returned {len(results)} results for query: {query!r}. Caching with TTL={CACHE_TTL_SECONDS}s.")
     cache.set(cache_key, results, timeout=CACHE_TTL_SECONDS)
     return results
 
 
 def resolve_catalog(external_ids: list[str]) -> list[dict]:
+    logger.debug(f"Resolving catalog for {len(external_ids)} game IDs.")
     results = []
     for game_id in external_ids:
-        data = _fetch_catalog_data({"id": game_id})
+        logger.debug(f"Fetching details for game_id: {game_id}")
+        try:
+            data = _fetch_catalog_data({"id": game_id})
+        except (CatalogServiceUnavailable, CatalogServiceExternalError) as exc:
+            logger.error(f"Provider failed for game_id: {game_id}. Exception: {type(exc).__name__}")
+            raise
+        
         info = data.get("info")
         if not info:
+            logger.warning(f"No info found for game_id: {game_id}. Skipping.")
             continue
 
-        results.append({
+        result = {
             "external_game_id": game_id,
             "title": info.get("title"),
             "thumb": info.get("thumb"),
-        })
+        }
+        results.append(result)
+        logger.debug(f"Resolved game_id: {game_id} -> title: {info.get('title')!r}")
 
+    logger.info(f"Resolved {len(results)}/{len(external_ids)} game IDs successfully.")
     return results

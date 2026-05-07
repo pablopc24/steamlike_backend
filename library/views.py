@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Entry
+from .catalog_service import resolve_catalog, CatalogServiceError
 
 CHEAPSHARK_SEARCH_URL = "https://www.cheapshark.com/api/1.0/games"
 
@@ -67,53 +68,24 @@ def entries_list(request):
         #   EJERCICIO 4 — CASO C
         # ============================
         try:
-            response = requests.get(
-                "https://www.cheapshark.com/api/1.0/games",
-                params={"id": external_id},
-                timeout=5
-            )
-        except requests.exceptions.RequestException:
-            return Response(
-                {
-                    "error": "external_service_unavailable",
-                    "message": "El catálogo externo no está disponible. Inténtalo más tarde."
-                },
-                status=503
-            )
-
-        if response.status_code != 200:
+            results = resolve_catalog([external_id])
+            if not results:
+                return Response(
+                    {
+                        "error": "invalid_external_game_id",
+                        "message": "El juego indicado no existe en el catálogo externo.",
+                        "details": {"external_id": "not_found"}
+                    },
+                    status=400
+                )
+            info = results[0]
+        except CatalogServiceError:
             return Response(
                 {
                     "error": "external_service_error",
                     "message": "Error al consultar el catálogo externo."
                 },
                 status=502
-            )
-
-        try:
-            data = response.json()
-        except ValueError:
-            return Response(
-                {
-                    "error": "external_service_error",
-                    "message": "Error al consultar el catálogo externo."
-                },
-                status=502
-            )
-
-        if isinstance(data, list):
-            info = data[0] if len(data) else None
-        else:
-            info = data.get("info")
-
-        if not info:
-            return Response(
-                {
-                    "error": "invalid_external_game_id",
-                    "message": "El juego indicado no existe en el catálogo externo.",
-                    "details": {"external_id": "not_found"}
-                },
-                status=400
             )
 
         title = info.get("title", "")
