@@ -104,6 +104,21 @@ USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+REDIS_HOST = _env("REDIS_HOST", "localhost")
+REDIS_PORT = _env("REDIS_PORT", "6379")
+REDIS_DB = _env("REDIS_DB", "0")
+REDIS_URL = _env("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
 # --- CORS + cookies ---
 CORS_ALLOWED_ORIGINS = _env_csv(
     "DJANGO_CORS_ALLOWED_ORIGINS",

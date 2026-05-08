@@ -1,6 +1,12 @@
-import requests
 import json
 from django.http import JsonResponse
+
+from library.catalog_service import (
+    CatalogServiceExternalError,
+    CatalogServiceUnavailable,
+    resolve_catalog,
+    search_catalog,
+)
 
 
 def health(request):
@@ -23,12 +29,9 @@ def catalog_search(request):
             status=400
         )
 
-    url = "https://www.cheapshark.com/api/1.0/games"
-
-    # Caso A — Timeout / red
     try:
-        response = requests.get(url, params={"title": q}, timeout=5)
-    except requests.exceptions.RequestException:
+        results = search_catalog(q)
+    except CatalogServiceUnavailable:
         return JsonResponse(
             {
                 "error": "external_service_unavailable",
@@ -36,9 +39,7 @@ def catalog_search(request):
             },
             status=503
         )
-
-    # Caso B — CheapShark responde con error
-    if response.status_code != 200:
+    except CatalogServiceExternalError:
         return JsonResponse(
             {
                 "error": "external_service_error",
@@ -46,28 +47,6 @@ def catalog_search(request):
             },
             status=502
         )
-
-    # Caso B — JSON inválido
-    try:
-        data = response.json()
-    except:
-        return JsonResponse(
-            {
-                "error": "external_service_error",
-                "message": "Error al consultar el catálogo externo."
-            },
-            status=502
-        )
-
-    # Transformación
-    results = [
-        {
-            "external_game_id": item.get("gameID"),
-            "title": item.get("external"),
-            "thumb": item.get("thumb")
-        }
-        for item in data
-    ]
 
     return JsonResponse(results, safe=False, status=200)
 
@@ -104,55 +83,23 @@ def catalog_resolve(request):
             status=400
         )
 
-    results = []
-
-    for game_id in external_ids:
-        url = "https://www.cheapshark.com/api/1.0/games"
-
-        # Caso A — Timeout / red
-        try:
-            response = requests.get(url, params={"id": game_id}, timeout=5)
-        except requests.exceptions.RequestException:
-            return JsonResponse(
-                {
-                    "error": "external_service_unavailable",
-                    "message": "El catálogo externo no está disponible. Inténtalo más tarde."
-                },
-                status=503
-            )
-
-        # Caso B — CheapShark responde con error
-        if response.status_code != 200:
-            return JsonResponse(
-                {
-                    "error": "external_service_error",
-                    "message": "Error al consultar el catálogo externo."
-                },
-                status=502
-            )
-
-        # Caso B — JSON inválido
-        try:
-            data = response.json()
-        except:
-            return JsonResponse(
-                {
-                    "error": "external_service_error",
-                    "message": "Error al consultar el catálogo externo."
-                },
-                status=502
-            )
-
-        info = data.get("info")
-
-        # Si no existe el juego → simplemente no se añade (Ejercicio 3 NO usa Caso C)
-        if not info:
-            continue
-
-        results.append({
-            "external_game_id": game_id,
-            "title": info.get("title"),
-            "thumb": info.get("thumb")
-        })
+    try:
+        results = resolve_catalog(external_ids)
+    except CatalogServiceUnavailable:
+        return JsonResponse(
+            {
+                "error": "external_service_unavailable",
+                "message": "El catálogo externo no está disponible. Inténtalo más tarde."
+            },
+            status=503
+        )
+    except CatalogServiceExternalError:
+        return JsonResponse(
+            {
+                "error": "external_service_error",
+                "message": "Error al consultar el catálogo externo."
+            },
+            status=502
+        )
 
     return JsonResponse(results, safe=False, status=200)
