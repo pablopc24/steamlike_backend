@@ -1,19 +1,23 @@
-FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app
+#FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-  && rm -rf /var/lib/apt/lists/*
+#ENV PYTHONDONTWRITEBYTECODE=1
+#ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+#WORKDIR /app
 
-COPY . /app/
+#RUN apt-get update && apt-get install -y --no-install-recommends \
+ #   curl \
+  #&& rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8000
+#COPY requirements.txt /app/
+#RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+#COPY . /app/
+
+#EXPOSE 8000
+
+#CMD ["gunicorn", "steamlike_backend.wsgi:application", "--bind", "0.0.0.0:8000"]
+#"]
+

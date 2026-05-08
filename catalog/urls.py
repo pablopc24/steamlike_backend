@@ -1,0 +1,8 @@
+from django.urls import path
+from .views import catalog_search, catalog_resolve, health
+
+urlpatterns = [
+    path("search/", catalog_search),
+    path("resolve/", catalog_resolve),
+    path("health/", health),
+]

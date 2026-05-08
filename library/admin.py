@@ -1,8 +1,7 @@
 from django.contrib import admin
-from .models import LibraryEntry
+from .models import Entry
 
-@admin.register(LibraryEntry)
-class LibraryEntryAdmin(admin.ModelAdmin):
-    list_display = ("external_game_id", "status", "hours_played")
-    search_fields = ("external_game_id",)
-    list_filter = ("status",)
+@admin.register(Entry)
+class EntryAdmin(admin.ModelAdmin):
+    list_display = ("external_id", "title", "owner")
+    search_fields = ("external_id", "title")
