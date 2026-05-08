@@ -160,7 +160,7 @@ class LibraryEntryCreateTests(APITestCase):
             "notes": "Notas de prueba"
         }
 
-        with patch('library.views.requests.get', return_value=fake_response):
+        with patch('library.catalog_service.requests.get', return_value=fake_response):
             response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -181,13 +181,13 @@ class LibraryEntryCreateTests(APITestCase):
 
         # User1 crea una entrada
         self.client.force_login(self.user1)
-        with patch('library.views.requests.get', return_value=fake_response1):
+        with patch('library.catalog_service.requests.get', return_value=fake_response1):
             self.client.post(self.url, {"external_id": "pablo", "hours_played": 5}, format="json")
         self.client.logout()
 
         # User2 crea otra entrada
         self.client.force_login(self.user2)
-        with patch('library.views.requests.get', return_value=fake_response2):
+        with patch('library.catalog_service.requests.get', return_value=fake_response2):
             self.client.post(self.url, {"external_id": "A-123", "hours_played": 2}, format="json")
 
         # Listado de user2 → solo debe ver su entrada

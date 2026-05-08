@@ -89,7 +89,17 @@ def resolve_catalog(external_ids: list[str]) -> list[dict]:
             logger.error(f"Provider failed for game_id: {game_id}. Exception: {type(exc).__name__}")
             raise
         
-        info = data.get("info")
+        if isinstance(data, list):
+            if not data:
+                logger.warning(f"No info found for game_id: {game_id}. Skipping.")
+                continue
+            info = data[0]
+        elif isinstance(data, dict):
+            info = data.get("info") or data
+        else:
+            logger.warning(f"Unexpected response format for game_id: {game_id}. Skipping.")
+            continue
+
         if not info:
             logger.warning(f"No info found for game_id: {game_id}. Skipping.")
             continue
