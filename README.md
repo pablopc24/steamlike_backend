@@ -58,3 +58,5 @@ Si cambias el frontend, ajusta `DJANGO_CORS_ALLOWED_ORIGINS` y `DJANGO_CSRF_TRUS
 - `library`: modelo `LibraryEntry`
 
 > No hay endpoints API predefinidos (salvo `admin/` y `health/`).
+
+> Nota: este cambio es una prueba para disparar el workflow de GitHub Actions en la rama `semana5`.
