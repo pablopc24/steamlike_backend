@@ -81,18 +81,24 @@ WSGI_APPLICATION = "steamlike_backend.wsgi.application"
 ASGI_APPLICATION = "steamlike_backend.asgi.application"
 
 # -------------------------
-# DATABASE (RENDER VERSION)
+# DATABASE (RENDER / local development)
 # -------------------------
+USE_POSTGRES = bool(_env("POSTGRES_DB")) or bool(_env("POSTGRES_USER")) or bool(_env("POSTGRES_PASSWORD"))
+DEFAULT_POSTGRES_HOST = _env("POSTGRES_HOST", "db" if USE_POSTGRES else "localhost")
+
 DATABASES = {
-    "default": dj_database_url.config(
-        default=f"postgresql://{_env('POSTGRES_USER')}:{_env('POSTGRES_PASSWORD')}@{_env('POSTGRES_HOST', 'db')}:{_env('POSTGRES_PORT', '5432')}/{_env('POSTGRES_DB')}"
-    ) if not DEBUG else {
+    "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": _env("POSTGRES_DB", "steamlike_db"),
         "USER": _env("POSTGRES_USER", "steamlike"),
         "PASSWORD": _env("POSTGRES_PASSWORD", "password"),
-        "HOST": _env("POSTGRES_HOST", "db"),
+        "HOST": DEFAULT_POSTGRES_HOST,
         "PORT": _env("POSTGRES_PORT", "5432"),
+    }
+    if (not DEBUG or USE_POSTGRES)
+    else {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -164,4 +170,13 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
 }
