@@ -8,6 +8,7 @@ on:
       - semana2.steam
       - semana5
       - semana7
+      - semana7optv
 
 jobs:
   test:
@@ -37,7 +38,7 @@ jobs:
 
   deploy:
     needs: test
-    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/semana7')
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/semana7' || github.ref == 'refs/heads/semana7optv')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render Deployment
