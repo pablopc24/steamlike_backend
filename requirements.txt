@@ -8,3 +8,4 @@ coverage
 dj-database-url
 django-redis>=5.0,<6.0
 requests
+djangorestframework-simplejwt
