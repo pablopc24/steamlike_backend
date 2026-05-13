@@ -7,6 +7,7 @@ on:
       - master
       - semana2.steam
       - semana5
+      - semana7
 
 jobs:
   test:
@@ -26,5 +27,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run backend tests
-        run: python manage.py test
+      - name: Check for pending migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run backend tests with coverage
+        run: |
+          coverage run manage.py test
+          coverage report
+
+  deploy:
+    needs: test
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/semana7')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deployment
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not set. Skipping deployment."
+            exit 0
+          fi
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
