@@ -5,7 +5,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 import json
 from django.contrib.auth import authenticate, login
-
+from catalog.services.email_service import (
+    EmailService,
+    ExternalServiceUnavailable,
+    ExternalServiceError
+)
+import logging
 
 def validation_error(details):
     return JsonResponse(
@@ -28,29 +33,29 @@ def register(request):
     if not data:
         return validation_error({"body": "El JSON no puede estar vacío"})
 
-    details = {}
-
     username = data.get("username")
     password = data.get("password")
+    
+    details = {}
 
     # Validar username
     if "username" not in data:
-        details["username"] = "campo obligatorio"
+        details["username"] = ["campo obligatorio"]
     elif not isinstance(username, str):
-        details["username"] = "debe ser string"
+        details["username"] = ["debe ser string"]
     elif User.objects.filter(username=username).exists():
-        details["username"] = "ya está en uso"
+        details["username"] = ["ya está en uso"]
 
     # Validar password
     if "password" not in data:
-        details["password"] = "campo obligatorio"
+        details["password"] = ["campo obligatorio"]
     elif not isinstance(password, str):
-        details["password"] = "debe ser string"
+        details["password"] = ["debe ser string"]
     elif len(password) < 8:
-        details["password"] = "debe tener al menos 8 caracteres"
+        details["password"] = ["debe tener al menos 8 caracteres"]
 
     if details:
-        return validation_error(details)
+        return JsonResponse({"error": "validation_error", "details": details}, status=400)
 
     # Crear usuario
     user = User.objects.create_user(username=username, password=password)
@@ -98,3 +103,26 @@ def me(request):
         )
 
     return JsonResponse({"id": request.user.id, "username": request.user.username})
+
+
+# -------------------------
+# CAMBIO DE CONTRASEÑA
+# -------------------------
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+    current_password = request.data.get("current_password")
+    new_password = request.data.get("new_password")
+
+    if not user.check_password(current_password):
+        return Response({"error": "Contraseña actual incorrecta"}, status=400)
+
+    user.set_password(new_password)
+    user.save()
+    return Response({"message": "Contraseña cambiada correctamente"})
