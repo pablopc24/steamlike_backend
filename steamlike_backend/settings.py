@@ -1,6 +1,14 @@
 from pathlib import Path
 import os
 import dj_database_url
+from dotenv import load_dotenv
+
+load_dotenv()  # Carga el archivo .env
+
+MAILEROO_TOKEN = os.getenv("MAILEROO_TOKEN")
+MAILEROO_FROM = os.getenv("MAILEROO_FROM")
+MAILEROO_ENDPOINT = os.getenv("MAILEROO_ENDPOINT")
+MAILEROO_TIMEOUT = os.getenv("MAILEROO_TIMEOUT")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,7 +29,6 @@ def _env_csv(name: str, default_csv: str = "") -> list[str]:
 SECRET_KEY = _env("DJANGO_SECRET_KEY", "change-me")
 DEBUG = _env_bool("DJANGO_DEBUG", True)
 
-# IMPORTANTE: añade aquí tu dominio de Render
 ALLOWED_HOSTS = _env_csv(
     "DJANGO_ALLOWED_HOSTS",
     "localhost,127.0.0.1,steamlike-backend-bvuy.onrender.com,testserver"
@@ -39,6 +46,7 @@ INSTALLED_APPS = [
     # Third-party
     "corsheaders",
     "rest_framework",
+    "rest_framework_simplejwt",
 
     # Local apps
     "library",
@@ -88,19 +96,12 @@ DEFAULT_POSTGRES_HOST = _env("POSTGRES_HOST", "db" if USE_POSTGRES else "localho
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": _env("POSTGRES_DB", "steamlike_db"),
-        "USER": _env("POSTGRES_USER", "steamlike"),
-        "PASSWORD": _env("POSTGRES_PASSWORD", "password"),
-        "HOST": DEFAULT_POSTGRES_HOST,
-        "PORT": _env("POSTGRES_PORT", "5432"),
-    }
-    if (not DEBUG or USE_POSTGRES)
-    else {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -125,10 +126,8 @@ REDIS_URL = _env("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        
     }
 }
 
@@ -167,6 +166,11 @@ LOGGING = {
         "library.catalog_service": {
             "handlers": ["console"],
             "level": "DEBUG",
+            "propagate": False,
+        },
+        "auth_app": {
+            "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
         },
     },
