@@ -5,6 +5,7 @@ from catalog.views import health
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
+    path("", lambda request: HttpResponse("Backend funcionando correctamente")),
     path("admin/", admin.site.urls),
     path("api/library/", include("library.urls")),
     path("api/catalog/", include("catalog.urls")),
