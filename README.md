@@ -59,4 +59,4 @@ Si cambias el frontend, ajusta `DJANGO_CORS_ALLOWED_ORIGINS` y `DJANGO_CSRF_TRUS
 
 > No hay endpoints API predefinidos (salvo `admin/` y `health/`).
 
-> Nota: este cambio es una prueba para disparar el workflow de GitHub Actions en la rama `semana5`.
+> Nota: este cambio es una prueba para disparar el workflow de GitHub Actions en la rama `semana7optv` para el Ejercicio 3.
