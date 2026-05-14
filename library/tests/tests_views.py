@@ -1,4 +1,4 @@
-﻿import json
+import json
 import hashlib
 import requests
 from unittest.mock import patch, MagicMock
@@ -53,7 +53,7 @@ class LibraryEntriesListTests(APITestCase):
     def test_list_without_auth(self):
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("detail", response.data)
         self.assertTrue(response.data.get("detail"))
 
@@ -106,7 +106,7 @@ class LibraryEntryDetailTests(APITestCase):
         url = f"/api/library/entries/{self.entry_user1.id}/"
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_detail_with_auth_own_entry(self):
         self.client.force_login(self.user1)
@@ -145,7 +145,7 @@ class LibraryEntryCreateTests(APITestCase):
         }
         response = self.client.post(self.url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_with_auth(self):
         self.client.force_login(self.user1)
